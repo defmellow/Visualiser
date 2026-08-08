@@ -26,6 +26,7 @@ class Display:
             display = [[False for _ in range(width)] for _ in range(height)]
 
         self._display: list[list[bool | None]] = display
+        self.set_mode(False)
 
     def set_mode(self, state: bool, on: str = "#", off: str = "*", dim: str = " "):
         self.symbols = {True: on, False: off, None: dim}
@@ -36,7 +37,7 @@ class Display:
             sys.stdout.write("\033[?25h")
 
     def render(self):
-        self.set_mode(True)
+        self.set_mode(True, *self.symbols.values())
         rows = [" ".join(self.symbols[x] for x in row) for row in self._display]
         sys.stdout.write("\033[H" + "\n".join(rows) + "\033[J")
         sys.stdout.flush()
@@ -45,8 +46,8 @@ class Display:
         print(sum(1 for y in self._display for x in y if x is True))
 
     def pixel(self, x: int, y: int, state: bool):
-        if x > self._width or y > self._height or y < 0 or x < 0:
-            raise ValueError("Coordinates out of bounds")
+        if x >= self._width or y >= self._height or y < 0 or x < 0: # >= because self._width and self._height are counts, while x and y are 0-indexed
+            raise ValueError(f"Coordinates out of bounds with pixel {x}, {y} to {state}")
         self._display[y][x] = state
 
     def create_line(self, x1: int, y1: int, x2: int, y2: int, state: bool):
@@ -62,15 +63,23 @@ class Display:
             [state for _ in range(self._width)] for _ in range(self._height)
         ]
 
+    def dump(self):
+        """Print instance attributes, abbreviating large collections."""
+        for name, value in vars(self).items():
+            if isinstance(value, list) and value and isinstance(value[0], list):
+                print(f"{name} = <{len(value)}x{len(value[0])} grid>")
+            else:
+                print(f"{name} = {value!r}")
 
 class Visuals(Display):
     def __init__(self, rate: int, width: int = 20) -> None:
-        self._height = 10
-        self._width = width
+        self._height = 10 # 1 indexed
+        self._width = width # 1 indexed
 
-        self._rate = rate * self._height
-        self._bottom = self._height - 1
-        self._columns = [0 for _ in range(self._width)]
+        self._rate = rate
+        self._bottom = self._height - 1 # 0 indexed
+        self._columns = [0 for _ in range(self._width)] # 0 indexed
+        self._heights = [0 for _ in range(self._width)] # 0 indexed
 
         super().__init__(self._height, self._width)
 
@@ -80,33 +89,44 @@ class Visuals(Display):
     def column(self, x: int, height: int):
         self._columns[x] = height
 
-    def random_columns(self):
-        self._columns = [randint(0, self._bottom) for _ in range(self._width)]
-       
+    def random_columns(self, amount: int | None = None):
+        if amount is None or not amount <= self._width: amount = self._width
+        elif amount < 0: raise ValueError(f"Amount {amount} must be greater than 0")
+        for _ in range(amount):
+            column = randint(0, self._width - 1)
+            height = randint(0, self._bottom)
+            self.column(column, height)
+        
+
     def render(self):
         self.clear(None)
+        
+        for column, height in enumerate(self._heights):
+            self._heights[column] = max(self._heights[column] - 1, self._columns[column], 0)
+            if self._heights[column] > self._bottom:
+                raise ValueError(f"Height {self._heights[column]} is greater than bottom {self._bottom}")
+
+            self.create_line(column, self._bottom, column, self._bottom - height, False)
+        
         for column, height in enumerate(self._columns):
+            self._columns[column] = max(self._columns[column] - 2, 0)
             self.create_line(column, self._bottom - height, column, self._bottom, True)
+
         super().render()
 
 
-# start_time = time()
-
-# while time() - start_time < 20:
-#     if level > 0: level -= 1
-#     top = 10 - (level // 10)
-#     display.clear(False)
-
-#     display.render()
-#     sleep(0.1)
-
-# display.set_mode(False)
-
 v = Visuals(10)
+v.set_mode(False, on="█", off="░", dim=" ")
+print(v.symbols)
 
+
+last_time = time()
 while True:
     if input():
         break
-    v.random_columns()
-    v.column(5, 5)
+
+    if time() - last_time > 0.1:
+        v.random_columns(randint(2, 6))
+        last_time = time()
     v.render()
+    sleep(0.1)
