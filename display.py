@@ -1,4 +1,5 @@
 import sys
+import tkinter
 from random import randint
 from time import sleep, time
 
@@ -11,9 +12,7 @@ class Display:
     Initialise by setting mode with set_mode() and print with render().
     """
 
-    def __init__(
-        self, height: int, width: int, display: list[list[bool | None]] | None = None
-    ):
+    def __init__(self, height: int, width: int, display: list[list[bool | None]] | None = None):
         self._height = height
         self._width = width
         self.state = False
@@ -46,7 +45,7 @@ class Display:
         print(sum(1 for y in self._display for x in y if x is True))
 
     def pixel(self, x: int, y: int, state: bool):
-        if x >= self._width or y >= self._height or y < 0 or x < 0: # >= because self._width and self._height are counts, while x and y are 0-indexed
+        if x >= self._width or y >= self._height or y < 0 or x < 0:  # >= because self._width and self._height are counts, while x and y are 0-in dexed
             raise ValueError(f"Coordinates out of bounds with pixel {x}, {y} to {state}")
         self._display[y][x] = state
 
@@ -59,9 +58,7 @@ class Display:
             raise ValueError("Only horizontal or vertical lines are supported")
 
     def clear(self, state: bool | None = False):
-        self._display = [
-            [state for _ in range(self._width)] for _ in range(self._height)
-        ]
+        self._display = [[state for _ in range(self._width)] for _ in range(self._height)]
 
     def dump(self):
         """Print instance attributes, abbreviating large collections."""
@@ -71,15 +68,16 @@ class Display:
             else:
                 print(f"{name} = {value!r}")
 
+
 class Visuals(Display):
     def __init__(self, rate: int, width: int = 20) -> None:
-        self._height = 10 # 1 indexed
-        self._width = width # 1 indexed
+        self._height = 10  # 1 indexed
+        self._width = width  # 1 indexed
 
         self._rate = rate
-        self._bottom = self._height - 1 # 0 indexed
-        self._columns = [0 for _ in range(self._width)] # 0 indexed
-        self._heights = [0 for _ in range(self._width)] # 0 indexed
+        self._bottom = self._height - 1  # 0 indexed
+        self._columns = [0 for _ in range(self._width)]  # 0 indexed
+        self._heights = [0 for _ in range(self._width)]  # 0 indexed
 
         super().__init__(self._height, self._width)
 
@@ -90,24 +88,25 @@ class Visuals(Display):
         self._columns[x] = height
 
     def random_columns(self, amount: int | None = None):
-        if amount is None or not amount <= self._width: amount = self._width
-        elif amount < 0: raise ValueError(f"Amount {amount} must be greater than 0")
+        if amount is None or not amount <= self._width:
+            amount = self._width
+        elif amount < 0:
+            raise ValueError(f"Amount {amount} must be greater than 0")
         for _ in range(amount):
             column = randint(0, self._width - 1)
             height = randint(0, self._bottom)
             self.column(column, height)
-        
 
     def render(self):
         self.clear(None)
-        
+
         for column, height in enumerate(self._heights):
             self._heights[column] = max(self._heights[column] - 1, self._columns[column], 0)
             if self._heights[column] > self._bottom:
                 raise ValueError(f"Height {self._heights[column]} is greater than bottom {self._bottom}")
 
             self.create_line(column, self._bottom, column, self._bottom - height, False)
-        
+
         for column, height in enumerate(self._columns):
             self._columns[column] = max(self._columns[column] - 2, 0)
             self.create_line(column, self._bottom - height, column, self._bottom, True)
@@ -117,8 +116,6 @@ class Visuals(Display):
 
 v = Visuals(10)
 v.set_mode(False, on="█", off="░", dim=" ")
-print(v.symbols)
-
 
 last_time = time()
 while True:
@@ -126,7 +123,7 @@ while True:
         break
 
     if time() - last_time > 0.1:
-        v.random_columns(randint(2, 6))
+        v.random_columns(randint(4, 7))
         last_time = time()
     v.render()
     sleep(0.1)
